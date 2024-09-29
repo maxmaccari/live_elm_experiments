@@ -1,0 +1,10 @@
+<.elm id="counter" app="Counter" elm-flag:int:initial-number={10} elm-on-mount="init-main">
+  <h1>Hello from inside elm</h1>
+</.elm>
+<script>
+  window.addEventListener("elm:init-main", function(event) {
+    event.detail.ports.numberChanged.subscribe(message => {
+      console.log("Updated number: " + message)
+    })
+  })
+</script>

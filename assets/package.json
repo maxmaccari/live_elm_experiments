@@ -1,0 +1,22 @@
+{
+  "name": "live-elm-experiments",
+  "version": "1.0.0",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-elm": "^0.0.12"
+  },
+  "dependencies": {
+    "jsdom": "^25.0.1",
+    "node-elm-compiler": "^5.0.6",
+    "phoenix": "file:../deps/phoenix",
+    "phoenix_html": "file:../deps/phoenix_html",
+    "phoenix_live_view": "file:../deps/phoenix_live_view"
+  }
+}
