@@ -5,11 +5,11 @@
   elm-flag:can-negative={false}
   elm-flag:prefix="My Number is: "
   elm-flag:object={%{hello: "world"}}
-  elm-on-mount="init-main"
+  elm-on-mount="counter-initialized"
 />
 
 <script>
-  window.addEventListener("elm:init-main", function(event) {
+  window.addEventListener("elm:counter-initialized", function(event) {
     event.detail.ports.numberChanged.subscribe(message => {
       console.log("Updated number: " + message)
     })
