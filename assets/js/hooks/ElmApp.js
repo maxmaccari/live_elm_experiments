@@ -188,10 +188,37 @@ export default {
     window.liveElm.updates[this.el.id] = slotsEl.innerHTML;
   },
   updated() {
+    let elmEl = this.el.firstElementChild;
+    if (elmEl.innerHTML == "") {
+      const appName = this.el.attributes.getNamedItem("elm-app")?.value;
+      const slotFlags = backupSlots(this.el.id, this.el);
+      const flags = getFlags(this.el, slotFlags);
+
+      const app = mountElmComponent(appName, elmEl, flags);
+      const mountedAppEl = this.el.firstElementChild;
+
+      // Copy all attributes from elmEl to mountedAppEl
+      for (let i = 0; i < elmEl.attributes.length; i++) {
+        const attr = elmEl.attributes[i];
+        mountedAppEl.setAttribute(attr.name, attr.value);
+      }
+
+      const onMountEvent = this.el.attributes.getNamedItem("elm-on-mount")?.value;
+      if (onMountEvent) {
+        window.dispatchEvent(new CustomEvent("elm:" + onMountEvent, { detail: { 
+          ports: app.ports,
+          liveSocket: this.liveSocket,
+          el: this.el
+      } }));
+      }
+
+      // Handle ports
+      handlePorts(this.el, app, this);
+    }
+    
+    
+    // TODO: Cleanup the slot logic (1 slot is enough);
     const id = this.el.id;
-    const elmEl = this.el.firstElementChild;
-    const slotsEl = this.el.lastElementChild
-    const html = window.liveElm.updates[id];
     const elmSlots = elmEl.getElementsByTagName('elm-slot')
 
     for (let i = 0; i < elmSlots.length; i++) {

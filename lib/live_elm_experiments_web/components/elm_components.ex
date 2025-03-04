@@ -4,14 +4,14 @@ defmodule LiveElmExperimentsWeb.ElmComponents do
   attr :id, :string, required: true
   attr :app, :string, required: true
   attr :rest, :global
-  attr :replace_updates, :boolean, default: false
+  attr :rerender_on_updates, :boolean, default: false
 
   slot :inner_block, required: false
 
   def elm(assigns) do
     assigns =
       assigns
-      |> assign(:phx_update, if(assigns.replace_updates, do: "replace", else: "ignore"))
+      |> assign(:phx_update, if(assigns.rerender_on_updates, do: "replace", else: "ignore"))
       |> assign(:elm_element_id, "#{assigns.id}--app")
       |> assign(:slots_element_id, "#{assigns.id}--slots")
       |> flags_to_json()
