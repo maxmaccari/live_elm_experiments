@@ -27,7 +27,7 @@ defmodule LiveElmExperimentsWeb.CounterLive do
       </div>
     </.elm>
 
-    <hr class="my-6" />
+    <%!-- <hr class="my-6" />
     <.elm
       id="events-counter"
       app="LiveCounter"
@@ -56,7 +56,7 @@ defmodule LiveElmExperimentsWeb.CounterLive do
       elm-flag:int:initial-number={@count}
       elm-on:number-change-clicked="update"
     />
-    <p>This value is update through re-render</p>
+    <p>This value is update through re-render</p> --%>
     """
   end
 
