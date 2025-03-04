@@ -69,7 +69,11 @@ defmodule LiveElmExperiments.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "cmd --cd assets npm install"
+      ],
       "assets.build": ["tailwind live_elm_experiments", "esbuild live_elm_experiments"],
       "assets.deploy": [
         "tailwind live_elm_experiments --minify",
