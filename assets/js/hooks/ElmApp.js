@@ -224,7 +224,6 @@ export default {
     for (let i = 0; i < elmSlots.length; i++) {
       const slotId = elmSlots[i].getAttribute("slot");
       const children = window.liveElm.slots[id]?.[slotId] || [];
-      console.log(children)
       elmSlots[i].innerHTML = children[0].innerHTML;
       elmSlots[i].innerHTML = "";
       for (let j = 0; j < children.length; j++) {
@@ -235,6 +234,8 @@ export default {
     
   },
   destroyed() {
-    debugger
+    const id = this.el.id
+    window.liveElm.updates[id] = null
+    window.liveElm.slots[id] = null
   }
 }
