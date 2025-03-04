@@ -1,7 +1,7 @@
 port module LiveCounter exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, h1, p, text)
+import Html exposing (Html, button, div, h1, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 

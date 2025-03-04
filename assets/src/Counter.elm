@@ -20,17 +20,23 @@ main =
 
 type alias Model =
     { count : Int
+    , canNegative : Bool
+    , prefix : String
     }
 
 
 type alias Flags =
     { initialNumber : Int
+    , canNegative : Bool
+    , prefix : String
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { count = flags.initialNumber
+      , canNegative = flags.canNegative
+      , prefix = flags.prefix
       }
     , Cmd.none
     )
@@ -43,19 +49,31 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Increment ->
-            ( { model | count = model.count + 1 }, numberChanged (model.count + 1) )
+    let
+        count =
+            case msg of
+                Increment ->
+                    model.count + 1
 
-        Decrement ->
-            ( { model | count = model.count - 1 }, numberChanged (model.count - 1) )
+                Decrement ->
+                    if model.canNegative then
+                        model.count - 1
+
+                    else
+                        max (model.count - 1) 0
+    in
+    ( { model | count = count }, numberChanged count )
 
 
 view : Model -> Html Msg
 view model =
     div []
         [ button [ onClick Decrement ] [ text "-" ]
-        , div [] [ text (String.fromInt model.count) ]
+        , div []
+            [ text model.prefix
+            , text " "
+            , text (String.fromInt model.count)
+            ]
         , button [ onClick Increment ] [ text "+" ]
         ]
 
