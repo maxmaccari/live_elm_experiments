@@ -129,7 +129,7 @@ const handlePorts = (element, app, context) => {
 }
 
 function backupSlots(id, el) {
-  const children = el.children;
+  const children = el.lastElementChild.children;
 
   this.liveElm.slots[id] = { default: children };
 
@@ -150,14 +150,21 @@ export default {
     }
 
     // Prepare the app
-    const elmEl = this.el.children[0];
+    const elmEl = this.el.firstElementChild;
 
     const appName = this.el.attributes.getNamedItem("elm-app")?.value;
-    const slotFlags = backupSlots(this.el.id, elmEl);
+    const slotFlags = backupSlots(this.el.id, this.el);
     const flags = getFlags(this.el, slotFlags);
 
     // Mount the app
     const app = mountElmComponent(appName, elmEl, flags);
+    const mountedAppEl = this.el.firstElementChild
+
+    // Copy all attributes from elmEl to mountedAppEl
+    for (let i = 0; i < elmEl.attributes.length; i++) {
+      const attr = elmEl.attributes[i];
+      mountedAppEl.setAttribute(attr.name, attr.value);
+    }
 
     // Dispatch an event when the app is mounted
     const onMountEvent = this.el.attributes.getNamedItem("elm-on-mount")?.value;
@@ -176,26 +183,26 @@ export default {
     if (!window.liveElm.updates) {
       window.liveElm.updates = {};
     }
-    const elmEl = this.el.children[0];
+    const slotsEl = this.el.lastElementChild;
 
-    window.liveElm.updates[this.el.id] = elmEl.innerHTML;
+    window.liveElm.updates[this.el.id] = slotsEl.innerHTML;
   },
   updated() {
     const id = this.el.id;
-    const elmEl = this.el.children[0];
-
+    const elmEl = this.el.firstElementChild;
+    const slotsEl = this.el.lastElementChild
     const html = window.liveElm.updates[id];
-    this.el.innerHTML = html;
     const elmSlots = elmEl.getElementsByTagName('elm-slot')
+
     for (let i = 0; i < elmSlots.length; i++) {
       const slotId = elmSlots[i].getAttribute("slot");
       const children = window.liveElm.slots[id]?.[slotId] || [];
-      debugger
-      // elmSlots[i].innerHTML = children[0].innerHTML;
-      // elmSlots[i].innerHTML = "";
-      // for (let j = 0; j < children.length; j++) {
-      //   elmSlots[i].appendChild(children[j]);
-      // }
+      console.log(children)
+      elmSlots[i].innerHTML = children[0].innerHTML;
+      elmSlots[i].innerHTML = "";
+      for (let j = 0; j < children.length; j++) {
+        elmSlots[i].appendChild(children[j]);
+      }
     }
     window.liveElm.updates[id] = null;
     
