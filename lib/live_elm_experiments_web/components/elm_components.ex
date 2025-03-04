@@ -16,10 +16,13 @@ defmodule LiveElmExperimentsWeb.ElmComponents do
       |> assign(:slots_element_id, "#{assigns.id}--slots")
       |> flags_to_json()
 
-    # This wrapper prevents the elm application being re-rendered every view.
+    # The elm application will ever being rendered on the first slot. User may decide
+    # if the application will be re-rendered on updates, or if it will handle the updates.
+    # The slots are always included in the last child element.
     ~H"""
     <div id={@id} elm-app={@app} phx-hook="ElmApp" {@rest}>
       <div id={@elm_element_id} phx-update={@phx_update}></div>
+
       <div id={@slots_element_id} style="display:none">
         <%= render_slot(@inner_block) %>
       </div>
