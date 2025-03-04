@@ -49,29 +49,15 @@ function getFlags (element, slotFlags) {
     const attribute = element.attributes[i];
     if (attribute.name.startsWith("elm-flag:")) {
       const flagAttributeName = attribute.name.substring("elm-flag:".length);
-      let snakeCaseFlagName;
-      let value;
+      let value
 
-      if (flagAttributeName.startsWith("int:")) {
-        snakeCaseFlagName = flagAttributeName.substring("int:".length);
-        value = parseInt(attribute.value);
-      } else if (flagAttributeName.startsWith("bool:")) {
-        snakeCaseFlagName = flagAttributeName.substring("bool:".length);
-        value = attribute.value === "true";
-      } else if (flagAttributeName.startsWith("float:")) {
-        snakeCaseFlagName = flagAttributeName.substring("float:".length);
-        value = parseFloat(attribute.value);
-      } else if (flagAttributeName.startsWith("string:")) {
-        snakeCaseFlagName = flagAttributeName.substring("string:".length);
-        value = attribute.value;
-      } else if (flagAttributeName.startsWith("json:")) {
-        snakeCaseFlagName = flagAttributeName.substring("json:".length);
-        value = JSON.parse(attribute.value);
-      }  else {
-        snakeCaseFlagName = flagAttributeName;
-        value = attribute.value;
+      try {
+        value = JSON.parse(attribute.value)
+      } catch (e) {
+        throw new Error(`Invalid flag value: ${attribute.value}`)
       }
-      const flagName = toCamelCase(snakeCaseFlagName);
+      
+      const flagName = toCamelCase(flagAttributeName);
 
       flags[flagName] = value;
     }
@@ -142,8 +128,7 @@ const handlePorts = (element, app, context) => {
   // https://hexdocs.pm/phoenix_live_view/js-interop.html
 }
 
-function backupSlots(el) {
-  const id = el.id;
+function backupSlots(id, el) {
   const children = el.children;
 
   this.liveElm.slots[id] = { default: children };
@@ -165,17 +150,17 @@ export default {
     }
 
     // Prepare the app
-    const elmEl = this.el;
+    const elmEl = this.el.children[0];
 
-    const appName = elmEl.attributes.getNamedItem("elm-app")?.value;
-    const slotFlags = backupSlots(elmEl);
-    const flags = getFlags(elmEl, slotFlags);
+    const appName = this.el.attributes.getNamedItem("elm-app")?.value;
+    const slotFlags = backupSlots(this.el.id, elmEl);
+    const flags = getFlags(this.el, slotFlags);
 
     // Mount the app
     const app = mountElmComponent(appName, elmEl, flags);
 
     // Dispatch an event when the app is mounted
-    const onMountEvent = elmEl.attributes.getNamedItem("elm-on-mount")?.value;
+    const onMountEvent = this.el.attributes.getNamedItem("elm-on-mount")?.value;
     if (onMountEvent) {
       window.dispatchEvent(new CustomEvent("elm:" + onMountEvent, { detail: { 
         ports: app.ports,
@@ -185,13 +170,35 @@ export default {
     }
 
     // Handle ports
-    handlePorts(elmEl, app, this);
+    handlePorts(this.el, app, this);
   },
   beforeUpdate() {
-    debugger
+    if (!window.liveElm.updates) {
+      window.liveElm.updates = {};
+    }
+    const elmEl = this.el.children[0];
+
+    window.liveElm.updates[this.el.id] = elmEl.innerHTML;
   },
   updated() {
-    debugger
+    const id = this.el.id;
+    const elmEl = this.el.children[0];
+
+    const html = window.liveElm.updates[id];
+    this.el.innerHTML = html;
+    const elmSlots = elmEl.getElementsByTagName('elm-slot')
+    for (let i = 0; i < elmSlots.length; i++) {
+      const slotId = elmSlots[i].getAttribute("slot");
+      const children = window.liveElm.slots[id]?.[slotId] || [];
+      debugger
+      // elmSlots[i].innerHTML = children[0].innerHTML;
+      // elmSlots[i].innerHTML = "";
+      // for (let j = 0; j < children.length; j++) {
+      //   elmSlots[i].appendChild(children[j]);
+      // }
+    }
+    window.liveElm.updates[id] = null;
+    
   },
   destroyed() {
     debugger
