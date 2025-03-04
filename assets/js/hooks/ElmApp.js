@@ -1,11 +1,11 @@
-import { Elm as CounterElm  } from '../../src/Counter.elm';
-import { Elm as LiveCounterElm  } from '../../src/LiveCounter.elm';
-import { Elm as WrapperElm  } from '../../src/Wrapper.elm';
+import { Elm as CounterElm } from '../../src/Counter.elm';
+import { Elm as LiveCounterElm } from '../../src/LiveCounter.elm';
+import { Elm as WrapperElm } from '../../src/Wrapper.elm';
 
 
 
 customElements.define("elm-slot", class extends HTMLElement {
-  constructor () {
+  constructor() {
     super();
   }
 
@@ -27,7 +27,7 @@ const apps = {
   Wrapper: WrapperElm.Wrapper,
 }
 
-function mountElmComponent (appName, element, flags) {
+function mountElmComponent(appName, element, flags) {
   const elmApp = apps[appName];
 
   if (!elmApp) {
@@ -42,7 +42,7 @@ function mountElmComponent (appName, element, flags) {
   return app;
 }
 
-function getFlags (element, slotFlags) {
+function getFlags(element, slotFlags) {
   const flags = {};
 
   for (let i = 0; i < element.attributes.length; i++) {
@@ -56,14 +56,14 @@ function getFlags (element, slotFlags) {
       } catch (e) {
         throw new Error(`Invalid flag value: ${attribute.value}`)
       }
-      
+
       const flagName = toCamelCase(flagAttributeName);
 
       flags[flagName] = value;
     }
   }
 
-  return {...flags,...(slotFlags || {})};
+  return { ...flags, ...(slotFlags || {}) };
 }
 
 function toCamelCase(str) {
@@ -88,13 +88,13 @@ const handlePorts = (element, app, context) => {
         if (event.startsWith("[")) {
           context.liveSocket.execJS(element, event);
         } else {
-          context.pushEventTo(element, event, {value: message});
+          context.pushEventTo(element, event, { value: message });
         }
       });
     } else if (attribute.name.startsWith("elm-handle-event")) {
       const eventName = attribute.value;
       const portName = toCamelCase(`on-${eventName}`)
-      
+
       if (!app.ports || !app.ports[portName]) {
         throw new Error(`Unable to handle '${eventName}' because no port named ${portName}`);
       }
@@ -139,6 +139,39 @@ function backupSlots(id, el) {
   }
 }
 
+function initElm(context) {
+  // Prepare the app
+  const appName = context.el.attributes.getNamedItem("elm-app")?.value;
+  const slotFlags = backupSlots(context.el.id, context.el);
+  const flags = getFlags(context.el, slotFlags);
+
+  // Mount the app in the first child of the main element
+  const elmEl = context.el.firstElementChild;
+  const app = mountElmComponent(appName, elmEl, flags);
+  const mountedAppEl = context.el.firstElementChild
+
+  // Copy all attributes from elmEl to mountedAppEl
+  for (let i = 0; i < elmEl.attributes.length; i++) {
+    const attr = elmEl.attributes[i];
+    mountedAppEl.setAttribute(attr.name, attr.value);
+  }
+
+  // Dispatch an event when the app is mounted
+  const onMountEvent = context.el.attributes.getNamedItem("elm-on-mount")?.value;
+  if (onMountEvent) {
+    window.dispatchEvent(new CustomEvent("elm:" + onMountEvent, {
+      detail: {
+        ports: app.ports,
+        liveSocket: this.liveSocket,
+        el: context.el
+      }
+    }));
+  }
+
+  // Handle ports
+  handlePorts(context.el, app, context);
+}
+
 // TODO: Make this configurable, making it able to setup the apps from main Javascript;
 export default {
   mounted() {
@@ -149,35 +182,7 @@ export default {
       }
     }
 
-    // Prepare the app
-    const elmEl = this.el.firstElementChild;
-
-    const appName = this.el.attributes.getNamedItem("elm-app")?.value;
-    const slotFlags = backupSlots(this.el.id, this.el);
-    const flags = getFlags(this.el, slotFlags);
-
-    // Mount the app
-    const app = mountElmComponent(appName, elmEl, flags);
-    const mountedAppEl = this.el.firstElementChild
-
-    // Copy all attributes from elmEl to mountedAppEl
-    for (let i = 0; i < elmEl.attributes.length; i++) {
-      const attr = elmEl.attributes[i];
-      mountedAppEl.setAttribute(attr.name, attr.value);
-    }
-
-    // Dispatch an event when the app is mounted
-    const onMountEvent = this.el.attributes.getNamedItem("elm-on-mount")?.value;
-    if (onMountEvent) {
-      window.dispatchEvent(new CustomEvent("elm:" + onMountEvent, { detail: { 
-        ports: app.ports,
-        liveSocket: this.liveSocket,
-        el: this.el
-    } }));
-    }
-
-    // Handle ports
-    handlePorts(this.el, app, this);
+    initElm(this)
   },
   beforeUpdate() {
     if (!window.liveElm.updates) {
@@ -190,33 +195,10 @@ export default {
   updated() {
     let elmEl = this.el.firstElementChild;
     if (elmEl.innerHTML == "") {
-      const appName = this.el.attributes.getNamedItem("elm-app")?.value;
-      const slotFlags = backupSlots(this.el.id, this.el);
-      const flags = getFlags(this.el, slotFlags);
-
-      const app = mountElmComponent(appName, elmEl, flags);
-      const mountedAppEl = this.el.firstElementChild;
-
-      // Copy all attributes from elmEl to mountedAppEl
-      for (let i = 0; i < elmEl.attributes.length; i++) {
-        const attr = elmEl.attributes[i];
-        mountedAppEl.setAttribute(attr.name, attr.value);
-      }
-
-      const onMountEvent = this.el.attributes.getNamedItem("elm-on-mount")?.value;
-      if (onMountEvent) {
-        window.dispatchEvent(new CustomEvent("elm:" + onMountEvent, { detail: { 
-          ports: app.ports,
-          liveSocket: this.liveSocket,
-          el: this.el
-      } }));
-      }
-
-      // Handle ports
-      handlePorts(this.el, app, this);
+      initElm(this)
     }
-    
-    
+
+
     // TODO: Cleanup the slot logic (1 slot is enough);
     const id = this.el.id;
     const elmSlots = elmEl.getElementsByTagName('elm-slot')
@@ -231,7 +213,7 @@ export default {
       }
     }
     window.liveElm.updates[id] = null;
-    
+
   },
   destroyed() {
     const id = this.el.id
