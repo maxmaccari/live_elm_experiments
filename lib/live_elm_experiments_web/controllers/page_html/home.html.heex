@@ -1,13 +1,14 @@
 <.elm
   id="counter"
   app="Counter"
-  elm-flag:initial-number={0}
-  elm-flag:can-negative={false}
-  elm-flag:prefix="My Number is: "
+  elm-flag:initial-number={5}
+  elm-flag:can-negative={true}
+  elm-flag:prefix="The Number is: "
   elm-flag:object={%{hello: "world"}}
   elm-on-mount="counter-initialized"
 />
-
+<script phx-track-static type="text/javascript" src={~p"/assets/counterApp.js"}>
+</script>
 <script>
   window.addEventListener("elm:counter-initialized", function(event) {
     event.detail.ports.numberChanged.subscribe(message => {

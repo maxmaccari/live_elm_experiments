@@ -1,39 +1,40 @@
-import { Elm as CounterElm } from '../../src/Counter.elm';
-import { Elm as LiveCounterElm } from '../../src/LiveCounter.elm';
-import { Elm as WrapperElm } from '../../src/Wrapper.elm';
 
-
-
-customElements.define("elm-slot", class extends HTMLElement {
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    const slotId = this.getAttribute("slot") || "default";
-    const appId = this.getAttribute("app");
-
-    const children = window.liveElm.slots[appId]?.[slotId] || [];
-
-    for (let i = 0; i < children.length; i++) {
-      this.appendChild(children[i]);
+function getContext() {
+  if (!window.liveElm) {
+    window.liveElm = {
+      slots: {},
+      updates: {},
+      apps: {},
     }
   }
-});
 
-const apps = {
-  Counter: CounterElm.Counter,
-  LiveCounter: LiveCounterElm.LiveCounter,
-  Wrapper: WrapperElm.Wrapper,
+  return window.liveElm
 }
 
-function mountElmComponent(appName, element, flags) {
-  const elmApp = apps[appName];
+function registerElm(appName, elmApp) {
+  getContext().apps[appName] = elmApp;
+}
 
-  if (!elmApp) {
-    throw new Error(`Unknown app: ${appName}`);
-  }
+if (!customElements.get("elm-slot")) {
+  customElements.define("elm-slot", class extends HTMLElement {
+    constructor() {
+      super();
+    }
 
+    connectedCallback() {
+      const slotId = this.getAttribute("slot") || "default";
+      const appId = this.getAttribute("app");
+
+      const children = getContext().slots[appId]?.[slotId] || [];
+
+      for (let i = 0; i < children.length; i++) {
+        this.appendChild(children[i]);
+      }
+    }
+  });
+}
+
+function mountElmComponent(elmApp, element, flags) {
   const app = elmApp.init({
     node: element,
     flags
@@ -108,30 +109,12 @@ const handlePorts = (element, app, context) => {
       })
     }
   }
-  // From Elm to Server:
-  //    this.liveSocket.execJS can execute js from the handler;
-  // And how to receive events from LiveView?
-  //    by attributes update:
-  //      in hooks: onBeforeElUpdated
-  //      elm:handle-update="port name"
-  //    Phoenix.LiveView.push_event/3
-  //      this.handleEvent:
-  //      elm:handle-event:port-name="handle-server-pushed-event"
-  //    and we can set ports in javascript by exposing the app globally, allowing to customize javascript call;
-  //      window.elmApps = { Main: app }
-  //      elm-expose-app="Main"
-  //    or another idea:
-  //      elm:on-mount="event"
-  //      window.addEventListener("event", (app) => app.ports.update.send("something"))
-  // So, it will have an port called update, and every time an attribute is updated, it calls the port name;
-  // https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.JS.html#module-client-utility-commands
-  // https://hexdocs.pm/phoenix_live_view/js-interop.html
 }
 
 function backupSlots(id, el) {
   const children = el.lastElementChild.children;
 
-  this.liveElm.slots[id] = { default: children };
+  getContext().slots[id] = { default: children };
 
   return {
     appId: id,
@@ -139,15 +122,29 @@ function backupSlots(id, el) {
   }
 }
 
-function initElm(context) {
+function initElm(context, preconfiguredApps) {
   // Prepare the app
   const appName = context.el.attributes.getNamedItem("elm-app")?.value;
   const slotFlags = backupSlots(context.el.id, context.el);
   const flags = getFlags(context.el, slotFlags);
 
+  // Merge the apps with types defined in window
+  let apps = {}
+  if (preconfiguredApps) {
+    apps = { ...preconfiguredApps }
+  }
+  if (getContext().apps) {
+    apps = { ...apps, ...getContext().apps }
+  }
+
   // Mount the app in the first child of the main element
   const elmEl = context.el.firstElementChild;
-  const app = mountElmComponent(appName, elmEl, flags);
+  const elmApp = apps[appName];
+  if (!elmApp) {
+    throw new Error(`Unknown app: ${appName}`);
+  }
+
+  const app = mountElmComponent(elmApp, elmEl, flags);
   const mountedAppEl = context.el.firstElementChild
 
   // Copy all attributes from elmEl to mountedAppEl
@@ -172,52 +169,46 @@ function initElm(context) {
   handlePorts(context.el, app, context);
 }
 
-// TODO: Make this configurable, making it able to setup the apps from main Javascript;
-export default {
-  mounted() {
-    // Setup liveElm in window
-    if (!window.liveElm) {
-      window.liveElm = {
-        slots: {}
+function makeElmApp(apps) {
+  return {
+    mounted() {
+      initElm(this, apps)
+    },
+    beforeUpdate() {
+      const slotsEl = this.el.lastElementChild;
+
+      getContext().updates[this.el.id] = slotsEl.innerHTML;
+    },
+    updated() {
+      let elmEl = this.el.firstElementChild;
+      if (elmEl.innerHTML == "") {
+        initElm(this, apps)
       }
-    }
 
-    initElm(this)
-  },
-  beforeUpdate() {
-    if (!window.liveElm.updates) {
-      window.liveElm.updates = {};
-    }
-    const slotsEl = this.el.lastElementChild;
+      const id = this.el.id;
+      const elmSlots = elmEl.getElementsByTagName('elm-slot')
 
-    window.liveElm.updates[this.el.id] = slotsEl.innerHTML;
-  },
-  updated() {
-    let elmEl = this.el.firstElementChild;
-    if (elmEl.innerHTML == "") {
-      initElm(this)
-    }
-
-
-    // TODO: Cleanup the slot logic (1 slot is enough);
-    const id = this.el.id;
-    const elmSlots = elmEl.getElementsByTagName('elm-slot')
-
-    for (let i = 0; i < elmSlots.length; i++) {
-      const slotId = elmSlots[i].getAttribute("slot");
-      const children = window.liveElm.slots[id]?.[slotId] || [];
-      elmSlots[i].innerHTML = children[0].innerHTML;
-      elmSlots[i].innerHTML = "";
-      for (let j = 0; j < children.length; j++) {
-        elmSlots[i].appendChild(children[j]);
+      for (let i = 0; i < elmSlots.length; i++) {
+        const slotId = elmSlots[i].getAttribute("slot");
+        const children = getContext().slots[id]?.[slotId] || [];
+        elmSlots[i].innerHTML = children[0].innerHTML;
+        elmSlots[i].innerHTML = "";
+        for (let j = 0; j < children.length; j++) {
+          elmSlots[i].appendChild(children[j]);
+        }
       }
-    }
-    window.liveElm.updates[id] = null;
+      getContext().updates[id] = null;
 
-  },
-  destroyed() {
-    const id = this.el.id
-    window.liveElm.updates[id] = null
-    window.liveElm.slots[id] = null
+    },
+    destroyed() {
+      const id = this.el.id
+      getContext().updates[id] = null
+      getContext().slots[id] = null
+    }
   }
+}
+
+export {
+  makeElmApp,
+  registerElm
 }
